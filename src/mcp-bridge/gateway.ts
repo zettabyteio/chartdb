@@ -60,8 +60,10 @@ export const commit = async (
     } catch (error) {
         try {
             await gateway.save(before);
-        } catch {
-            // Best effort: the original failure is the one worth reporting.
+        } catch (restoreError) {
+            throw new ToolError(
+                `Saving failed AND restoring the previous state also failed; the diagram may be inconsistent. Save error: ${describeError(error)}. Restore error: ${describeError(restoreError)}.`
+            );
         }
         throw new ToolError(
             `Saving failed and the previous state was restored. Cause: ${describeError(error)}`

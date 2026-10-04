@@ -60,6 +60,7 @@ describe('resolveTable', () => {
         );
         expect(() => resolveTable(diagram, 'users')).toThrow(/ambiguous/);
         expect(() => resolveTable(diagram, 'users')).toThrow(/a\.users/);
+        expect(() => resolveTable(diagram, 'users')).toThrow(/b\.users/);
         expect(resolveTable(diagram, 'b.users').schema).toBe('b');
     });
 
@@ -97,7 +98,10 @@ describe('loadTarget', () => {
 
 describe('commit / assertWritable', () => {
     it('saves and bumps updatedAt', async () => {
-        const d = await diagramFromDbml();
+        const d = {
+            ...(await diagramFromDbml()),
+            updatedAt: new Date('2020-01-01'),
+        };
         const { gateway, saves } = createMemoryGateway({
             diagrams: [d],
             currentId: d.id,
@@ -105,22 +109,42 @@ describe('commit / assertWritable', () => {
         await commit(gateway, d, { ...d, name: 'renamed' });
         expect(saves).toHaveLength(1);
         expect(saves[0].name).toBe('renamed');
-        expect(saves[0].updatedAt.getTime()).toBeGreaterThanOrEqual(
+        expect(saves[0].updatedAt.getTime()).toBeGreaterThan(
             d.updatedAt.getTime()
         );
     });
 
     it('restores the previous diagram when saving fails', async () => {
         const d = await diagramFromDbml();
-        const { gateway, store } = createMemoryGateway({
+        const { gateway, store, saves } = createMemoryGateway({
             diagrams: [d],
             currentId: d.id,
             failSaves: 1,
         });
-        await expect(
-            commit(gateway, d, { ...d, name: 'renamed' })
-        ).rejects.toThrow(/previous state was restored/);
+        const attempt = commit(gateway, d, { ...d, name: 'renamed' });
+        await expect(attempt).rejects.toThrow(/previous state was restored/);
+        await expect(attempt).rejects.toThrow(/disk full/);
+        // The failed save is not recorded; the only recorded save is the restore.
+        expect(saves).toEqual([d]);
         expect(store.get(d.id)?.name).toBe(d.name);
+    });
+
+    it('says so honestly when restoring the previous diagram also fails', async () => {
+        const d = await diagramFromDbml();
+        const { gateway, saves } = createMemoryGateway({
+            diagrams: [d],
+            currentId: d.id,
+            failSaves: 2,
+        });
+        const attempt = commit(gateway, d, { ...d, name: 'renamed' });
+        await expect(attempt).rejects.toThrow(
+            /restoring the previous state also failed/
+        );
+        await expect(attempt).rejects.toThrow(/may be inconsistent/);
+        await expect(attempt).rejects.toThrow(/Save error: disk full/);
+        await expect(attempt).rejects.toThrow(/Restore error: disk full/);
+        await expect(attempt).rejects.not.toThrow(/was restored/);
+        expect(saves).toHaveLength(0);
     });
 
     it('refuses writes to the open diagram while read-only', async () => {
