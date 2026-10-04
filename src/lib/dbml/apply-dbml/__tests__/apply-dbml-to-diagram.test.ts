@@ -76,6 +76,31 @@ describe('applyDBMLToDiagram', () => {
         expect(summary.tablesChanged[0].fieldsAdded).toEqual(['bio']);
     });
 
+    it('reports a changed column type', async () => {
+        const base = await loadBase();
+        const dbml = DBML_V1.replace('title varchar(200)', 'title text');
+
+        const { summary } = await applyDBMLToDiagram({ diagram: base, dbml });
+
+        expect(summary.tablesChanged).toHaveLength(1);
+        expect(summary.tablesChanged[0].table.endsWith('posts')).toBe(true);
+        expect(summary.tablesChanged[0].fieldsChanged).toEqual(['title']);
+        expect(summary.tablesChanged[0].fieldsAdded).toEqual([]);
+        expect(summary.tablesChanged[0].fieldsRemoved).toEqual([]);
+    });
+
+    it('reports a dropped column', async () => {
+        const base = await loadBase();
+        const dbml = DBML_V1.replace('  title varchar(200)\n', '');
+
+        const { summary } = await applyDBMLToDiagram({ diagram: base, dbml });
+
+        expect(summary.tablesChanged).toHaveLength(1);
+        expect(summary.tablesChanged[0].table.endsWith('posts')).toBe(true);
+        expect(summary.tablesChanged[0].fieldsRemoved).toEqual(['title']);
+        expect(summary.tablesChanged[0].fieldsAdded).toEqual([]);
+    });
+
     it('reports a dropped table', async () => {
         const base = await loadBase();
         const dbml = `

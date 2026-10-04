@@ -26,21 +26,23 @@ const tableLabel = (table: DBTable): string =>
     table.schema ? `${table.schema}.${table.name}` : table.name;
 
 // Fields are compared on their meaningful attributes only. DBML import adds
-// optional keys as `undefined` while diagrams built elsewhere omit them, and a
-// plain deep-equal would treat those as different, so normalise first.
+// optional keys as `undefined` while diagrams built elsewhere omit them (or use
+// '' for empty strings), and a plain deep-equal would treat those as
+// different, so normalise first. A primary key implies unique: the DBML
+// importer sets `unique` on pk columns while the DDL importer does not.
 const comparableField = (field: DBField) => ({
     name: field.name,
     type: field.type.id,
     nullable: field.nullable,
     primaryKey: field.primaryKey,
-    unique: field.unique,
+    unique: !!(field.unique || field.primaryKey),
     increment: field.increment ?? false,
     isArray: field.isArray ?? false,
-    characterMaximumLength: field.characterMaximumLength ?? null,
+    characterMaximumLength: field.characterMaximumLength || null,
     precision: field.precision ?? null,
     scale: field.scale ?? null,
-    default: field.default ?? null,
-    comments: field.comments ?? null,
+    default: field.default || null,
+    comments: field.comments || null,
 });
 
 const customTypeLabel = (customType: DBCustomType): string =>
