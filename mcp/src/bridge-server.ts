@@ -129,12 +129,21 @@ export class BridgeServer implements ToolBackend {
         }
 
         let authenticated = false;
+        let rejected = false;
+        // close() only starts the closing handshake and ws keeps emitting
+        // 'message' meanwhile, so a rejected socket must never get another try.
+        const reject = (reason: string) => {
+            rejected = true;
+            socket.close(POLICY_VIOLATION, reason);
+        };
         const helloTimer = setTimeout(
-            () => socket.close(POLICY_VIOLATION, 'hello timeout'),
+            () => reject('hello timeout'),
             this.options.helloTimeoutMs ?? 5_000
         );
 
         socket.on('message', (raw) => {
+            if (rejected || socket.readyState !== socket.OPEN) return;
+
             let message: ClientMessage;
             try {
                 const parsed = clientMessageSchema.safeParse(
@@ -143,7 +152,7 @@ export class BridgeServer implements ToolBackend {
                 if (!parsed.success) throw new Error('invalid');
                 message = parsed.data;
             } catch {
-                socket.close(POLICY_VIOLATION, 'invalid message');
+                reject('invalid message');
                 return;
             }
 
@@ -157,7 +166,7 @@ export class BridgeServer implements ToolBackend {
                     this.adopt(socket);
                     socket.send(JSON.stringify({ type: 'ready' }));
                 } else {
-                    socket.close(POLICY_VIOLATION, 'authentication failed');
+                    reject('authentication failed');
                 }
                 return;
             }

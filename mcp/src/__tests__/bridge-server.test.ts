@@ -130,6 +130,45 @@ describe('handshake', () => {
         expect(await tab.closeCode).toBe(1008);
     });
 
+    it('does not let a rejected socket authenticate with a later valid hello', async () => {
+        const tab = new TestTab(server.port);
+        tabs.push(tab);
+        const received: Msg[] = [];
+        tab.ws.on('message', (data) =>
+            received.push(JSON.parse(data.toString()) as Msg)
+        );
+        await tab.opened;
+        // Back to back, same tick: the socket is CLOSING when the second
+        // frame is processed.
+        tab.send({ type: 'hello', token: 'x'.repeat(TOKEN.length) });
+        tab.send({ type: 'hello', token: TOKEN });
+
+        expect(await tab.closeCode).toBe(1008);
+        expect(received).toEqual([]);
+        await expect(server.call('list_diagrams', {})).rejects.toThrow(
+            /No ChartDB tab is connected/
+        );
+    });
+
+    it('does not kick the authenticated tab when a rejected socket then sends a valid hello', async () => {
+        const first = await connect();
+        let firstClosed = false;
+        void first.closeCode.then(() => (firstClosed = true));
+
+        const rejectedTab = new TestTab(server.port);
+        tabs.push(rejectedTab);
+        await rejectedTab.opened;
+        rejectedTab.send({ type: 'hello', token: 'x'.repeat(TOKEN.length) });
+        rejectedTab.send({ type: 'hello', token: TOKEN });
+        expect(await rejectedTab.closeCode).toBe(1008);
+
+        expect(firstClosed).toBe(false);
+        const promise = server.call('list_diagrams', {});
+        const call = await first.next();
+        first.send({ type: 'result', id: call.id, ok: true, data: ['ok'] });
+        await expect(promise).resolves.toEqual(['ok']);
+    });
+
     it('never delivers calls to an unauthenticated socket', async () => {
         const tab = new TestTab(server.port);
         tabs.push(tab);
