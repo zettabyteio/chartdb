@@ -46,6 +46,19 @@ describe('live gateway', () => {
         expect(await gateway.load('open')).toBe(current);
         expect(await gateway.load('other')).toBe(other);
         expect(deps.storage.getDiagram).toHaveBeenCalledTimes(1);
+        // Storage defaults every include* flag to false; without these a write
+        // tool on another diagram would delete + re-add it with no tables.
+        expect(deps.storage.getDiagram).toHaveBeenCalledWith(
+            'other',
+            expect.objectContaining({
+                includeTables: true,
+                includeRelationships: true,
+                includeDependencies: true,
+                includeAreas: true,
+                includeCustomTypes: true,
+                includeNotes: true,
+            })
+        );
     });
 
     it('saves the open diagram through updateDiagramData with forceUpdateStorage', async () => {
