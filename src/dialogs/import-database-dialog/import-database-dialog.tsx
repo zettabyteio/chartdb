@@ -4,17 +4,13 @@ import { DatabaseType } from '@/lib/domain/database-type';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ImportDatabase } from '../common/import-database/import-database';
 import type { DatabaseEdition } from '@/lib/domain/database-edition';
-import type { DatabaseMetadata } from '@/lib/data/import-metadata/metadata-types/database-metadata';
-import { loadDatabaseMetadata } from '@/lib/data/import-metadata/metadata-types/database-metadata';
-import type { Diagram } from '@/lib/domain/diagram';
-import { loadFromDatabaseMetadata } from '@/lib/data/import-metadata/import';
 import { useChartDB } from '@/hooks/use-chartdb';
 import { useRedoUndoStack } from '@/hooks/use-redo-undo-stack';
 import { useTranslation } from 'react-i18next';
 import type { BaseDialogProps } from '../common/base-dialog-props';
-import { sqlImportToDiagram } from '@/lib/data/sql-import';
-import { importDBMLToDiagram } from '@/lib/dbml/dbml-import/dbml-import';
 import type { ImportMethod } from '@/lib/import-method/import-method';
+import { importContentToDiagram } from '@/lib/import-method/import-content';
+import { getImportOffsetX, offsetTablesX } from '@/lib/utils/import-offset';
 
 export interface ImportDatabaseDialogProps extends BaseDialogProps {
     databaseType: DatabaseType;
@@ -61,31 +57,12 @@ export const ImportDatabaseDialog: React.FC<ImportDatabaseDialogProps> = ({
     }, [dialog.open, importMethods, initialImportMethod]);
 
     const importDatabase = useCallback(async () => {
-        let diagram: Diagram | undefined;
-
-        if (importMethod === 'ddl') {
-            diagram = await sqlImportToDiagram({
-                sqlContent: scriptResult,
-                sourceDatabaseType: databaseType,
-                targetDatabaseType: databaseType,
-            });
-        } else if (importMethod === 'dbml') {
-            diagram = await importDBMLToDiagram(scriptResult, {
-                databaseType,
-            });
-        } else {
-            const databaseMetadata: DatabaseMetadata =
-                loadDatabaseMetadata(scriptResult);
-
-            diagram = await loadFromDatabaseMetadata({
-                databaseType,
-                databaseMetadata,
-                databaseEdition:
-                    databaseEdition?.trim().length === 0
-                        ? undefined
-                        : databaseEdition,
-            });
-        }
+        const diagram = await importContentToDiagram({
+            method: importMethod,
+            content: scriptResult,
+            databaseType,
+            databaseEdition,
+        });
 
         // Skip if nothing to import
         const newTablesNumber = diagram.tables?.length ?? 0;
@@ -97,25 +74,11 @@ export const ImportDatabaseDialog: React.FC<ImportDatabaseDialogProps> = ({
         // Close dialog immediately to prevent re-render blocking
         closeImportDatabaseDialog();
 
-        // Calculate position offset for new tables to avoid overlap
-        let offsetX = 0;
-        if (existingTables.length > 0) {
-            // Find the rightmost table
-            const rightmostTable = existingTables.reduce((max, table) => {
-                const tableRight = table.x + (table.width ?? 250);
-                const maxRight = max.x + (max.width ?? 250);
-                return tableRight > maxRight ? table : max;
-            });
-            // Position new tables 150px to the right of the rightmost table
-            offsetX = rightmostTable.x + (rightmostTable.width ?? 250) + 150;
-        }
-
-        // Apply offset to imported tables
-        const positionedTables =
-            diagram.tables?.map((table) => ({
-                ...table,
-                x: table.x + offsetX,
-            })) ?? [];
+        // Apply offset to imported tables so they land right of existing ones
+        const positionedTables = offsetTablesX(
+            diagram.tables ?? [],
+            getImportOffsetX(existingTables)
+        );
 
         // Use queueMicrotask to defer work after dialog closes but before next paint
         queueMicrotask(async () => {

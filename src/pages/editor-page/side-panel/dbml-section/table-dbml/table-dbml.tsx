@@ -24,8 +24,7 @@ import {
 } from 'lucide-react';
 import { generateDBMLFromDiagram } from '@/lib/dbml/dbml-export/dbml-export';
 import { useDiff } from '@/context/diff-context/use-diff';
-import { importDBMLToDiagram } from '@/lib/dbml/dbml-import/dbml-import';
-import { applyDBMLChanges } from '@/lib/dbml/apply-dbml/apply-dbml';
+import { applyDBMLToDiagram } from '@/lib/dbml/apply-dbml/apply-dbml-to-diagram';
 import { parseDBMLError } from '@/lib/dbml/dbml-import/dbml-import-error';
 import {
     clearErrorHighlight,
@@ -211,24 +210,13 @@ export const TableDBML: React.FC<TableDBMLProps> = () => {
             clearErrorHighlight(decorationsCollection.current);
             setErrorMessage(undefined);
             try {
-                const diagramFromDBML: Diagram = await importDBMLToDiagram(
-                    dbmlContent,
-                    { databaseType }
-                );
-
                 const sourceDiagram: Diagram =
                     originalDiagramRef.current ?? currentDiagramRef.current;
 
-                const targetDiagram: Diagram = {
-                    ...sourceDiagram,
-                    tables: diagramFromDBML.tables,
-                    relationships: diagramFromDBML.relationships,
-                    customTypes: diagramFromDBML.customTypes,
-                };
-
-                const newDiagram = applyDBMLChanges({
-                    sourceDiagram,
-                    targetDiagram,
+                const { diagram: newDiagram } = await applyDBMLToDiagram({
+                    diagram: sourceDiagram,
+                    dbml: dbmlContent,
+                    databaseType,
                 });
 
                 if (originalDiagramRef.current) {
