@@ -28,3 +28,10 @@ jobs:
 
       - name: Run tests
         run: npm run test:ci
+
+      - name: MCP server (install, typecheck, test, build)
+        run: |
+          npm --prefix mcp ci
+          npm --prefix mcp run typecheck
+          npm --prefix mcp test
+          npm --prefix mcp run build

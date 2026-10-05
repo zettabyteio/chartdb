@@ -59,6 +59,13 @@ The diagram canvas is built on `@xyflow/react` (React Flow). Tables, areas and n
 - i18n uses i18next with ~22 locale files in `src/i18n/locales`. `en.ts` is the source of truth. `LanguageTranslation` is typed from it, so a new key must be added to every locale file or `tsc` fails.
 - `src/polyfills.ts` is imported first in `main.tsx`, and `safari-compat.ts` exists for Safari. Keep the import order.
 
+### MCP bridge (fork-only)
+`src/mcp-bridge/` + `mcp/` let an MCP client drive the app (spec: `docs/superpowers/specs/2026-10-04-mcp-server-design.md`).
+- `mcp/` is a separate Node package (own `package.json`, built with esbuild, tested with `npm --prefix mcp test`; excluded from the root Vitest run). It speaks MCP over stdio and relays calls over a `127.0.0.1` WebSocket (`mcp/src/bridge-server.ts`). **Never write to stdout in `mcp/src`** — stdout is the protocol channel.
+- `src/mcp-bridge/protocol.ts` is the single source of truth for tool names and zod input schemas, imported by both sides. It must use relative imports only (Node bundles it).
+- Browser side: `use-mcp-bridge.ts` (mounted in `editor-page.tsx`, inert unless `VITE_MCP_BRIDGE_URL` is set) → `bridge-client.ts` (runs calls one at a time) → `handlers/*` → a `DiagramGateway` (`gateway.ts`; `live-gateway.ts` in the app, in-memory in tests). Write tools are pure `Diagram → Diagram` transforms followed by `commit()`, which rolls back if saving fails.
+- Shared logic extracted from UI code lives in `src/lib` (`applyDBMLToDiagram`, `importContentToDiagram`, `getImportOffsetX`); the DBML side panel and import dialog use the same functions.
+
 ## Conventions
 
 - Commits and PRs follow conventional commits (`feat:`, `fix:`, ...). Releases are automated through release-please, so don't hand-edit `CHANGELOG.md` or the version in `package.json`.

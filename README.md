@@ -153,6 +153,37 @@ VITE_LLM_MODEL_NAME=Qwen/Qwen2.5-32B-Instruct-AWQ
 - [GitHub Issues](https://github.com/chartdb/chartdb/issues) (For any bugs and errors you encounter using ChartDB)
 - [Twitter](https://x.com/intent/follow?screen_name=jonathanfishner) (Get news fast)
 
+## MCP server (fork feature)
+
+This fork can be driven by an MCP client (Claude Code, Claude Desktop, …). A small Node server (`mcp/`) talks MCP over stdio and relays each call over a local WebSocket to the ChartDB tab you have open, so edits appear live and are saved to the browser's IndexedDB like any other edit.
+
+Local use only: the shared token is compiled into the app bundle (in dev and in production builds alike), so never deploy a build that sets `VITE_MCP_BRIDGE_*` to a public host, and never run `vite preview --host`. The official Docker image does not enable the bridge.
+
+1. Pick a secret: `openssl rand -hex 16`
+2. App: create `.env.local` in the repo root (Vite reads it in every mode, so it is baked into production builds too), then build and serve the production bundle locally
+
+   ```bash
+   VITE_MCP_BRIDGE_URL=ws://127.0.0.1:8765
+   VITE_MCP_BRIDGE_TOKEN=<your secret>
+   ```
+
+   ```bash
+   npm run build && npm run preview     # open http://localhost:4173
+   ```
+
+   (`npm run dev` also works, on http://localhost:5173. If you serve the build on another port, add its origin to `CHARTDB_MCP_ALLOWED_ORIGINS`. Rebuild after changing the token or URL: they are fixed at build time.)
+
+3. Server: build it and register it with Claude Code (run the root `npm install` first: the server bundle reuses the repo's `zod`)
+
+   ```bash
+   npm --prefix mcp ci && npm --prefix mcp run build
+   claude mcp add --transport stdio --env CHARTDB_MCP_TOKEN=<your secret> chartdb -- node "$(pwd)/mcp/dist/index.js"
+   ```
+
+Optional server settings: `CHARTDB_MCP_PORT` (default `8765`, must match `VITE_MCP_BRIDGE_URL`) and `CHARTDB_MCP_ALLOWED_ORIGINS` (comma-separated, default: localhost and 127.0.0.1 on ports 5173 and 4173).
+
+Tools: `list_diagrams`, `get_diagram`, `create_diagram`, `import_into_diagram`, `apply_dbml`, `export_sql`, `remove_tables`, `rename_diagram`, `delete_diagram`, `upsert_note`, `upsert_area`, `auto_arrange`, `validate_dbml`. Deleting a diagram needs `confirmName`; `apply_dbml` refuses to drop tables unless `allowDrops: true` (use `dryRun` first). Edits to the open diagram clear the app's undo/redo history and cannot be undone from the app. If the most recent tab is closed, calls fail until a tab reconnects. Only one server can listen on a port, so a second Claude session needs its own `CHARTDB_MCP_PORT` (and a tab built with the matching `VITE_MCP_BRIDGE_URL`). Tool results larger than 16 MB cannot be returned. `get_diagram` omits tables with no fields, duplicate tables and fields with an empty name, so feeding that DBML back into `apply_dbml` reports them as removed (tables are blocked by the drop guard).
+
 ## Contributing
 
 We welcome community contributions, big or small, and are here to guide you along

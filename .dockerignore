@@ -1,6 +1,6 @@
-# Ignore node_modules and build directories
-node_modules
-dist
+# Ignore node_modules and build directories (at any depth, e.g. mcp/)
+**/node_modules
+**/dist
 build
 
 # Ignore logs
@@ -12,6 +12,7 @@ pnpm-debug.log*
 # Ignore local environment files
 .env
 .env.local
+.env.production
 .env.*.local
 
 # Ignore Dockerfile and Docker Compose files
