@@ -59,7 +59,9 @@ export const toolInputShapes = {
         allowDrops: z
             .boolean()
             .default(false)
-            .describe('Allow the DBML to delete tables that are not in it.'),
+            .describe(
+                'Allow the DBML to delete tables or enum/custom types that are not in it.'
+            ),
     },
     export_sql: {
         diagramId,

@@ -14,9 +14,9 @@ const DESCRIPTIONS: Record<ToolName, string> = {
     import_into_diagram:
         'Add tables from SQL DDL, DBML or smart-query JSON to an existing diagram, placed to the right of the current tables.',
     apply_dbml:
-        'Make the diagram match a full DBML document (tables, relationships, enums), keeping ids and layout of what remains. Use dryRun first to see the change summary. Deleting tables requires allowDrops: true; a rename is applied as delete + create.',
+        'Make the diagram match a full DBML document (tables, relationships, enums), keeping ids and layout of what remains. Use dryRun first to see the change summary. Deleting tables or enum/custom types requires allowDrops: true; a rename is applied as delete + create.',
     export_sql:
-        'Generate deterministic SQL DDL for the diagram, in its own dialect or another one. Does not use AI.',
+        'Generate deterministic SQL DDL for the diagram, in its own dialect or a supported other dialect. Does not use AI.',
     remove_tables:
         "Delete tables by name ('table' or 'schema.table') together with their relationships and dependencies.",
     rename_diagram: 'Rename a diagram.',

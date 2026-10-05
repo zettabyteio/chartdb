@@ -7,7 +7,7 @@ import { MCP_BRIDGE_TOKEN, MCP_BRIDGE_URL } from './bridge-config';
 import { createHandlers } from './handlers';
 import { createLiveGateway } from './live-gateway';
 
-/** Connects this tab to the local MCP bridge server (dev only; see bridge-config). */
+/** Connects this tab to the local MCP bridge server (local builds only: dev server or `vite preview`; see bridge-config). */
 export const useMcpBridge = (): void => {
     const chartdb = useChartDB();
     const storage = useStorage();

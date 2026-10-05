@@ -83,7 +83,7 @@ export class BridgeServer implements ToolBackend {
         if (!tab) {
             return Promise.reject(
                 new Error(
-                    'No ChartDB tab is connected. Open the app in a browser with VITE_MCP_BRIDGE_URL and VITE_MCP_BRIDGE_TOKEN set (npm run dev), then retry.'
+                    'No ChartDB tab is connected. Open the app with VITE_MCP_BRIDGE_URL and VITE_MCP_BRIDGE_TOKEN set in .env.local before building (npm run build && npm run preview, or npm run dev) — they are fixed at build time, so rebuild after changing them — then retry.'
                 )
             );
         }
@@ -96,7 +96,7 @@ export class BridgeServer implements ToolBackend {
                 this.pending.delete(id);
                 reject(
                     new Error(
-                        `Timed out after ${timeoutMs}ms waiting for the ChartDB tab to answer.`
+                        `Timed out after ${timeoutMs}ms waiting for the ChartDB tab to answer. The tab may still complete the call: check with get_diagram or list_diagrams before retrying, because retrying import_into_diagram or create_diagram could create duplicates.`
                     )
                 );
             }, timeoutMs);

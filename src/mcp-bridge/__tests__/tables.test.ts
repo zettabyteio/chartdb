@@ -188,6 +188,83 @@ describe('remove_tables', () => {
         expect(store.get(d.id)?.relationships).toHaveLength(0);
     });
 
+    it('cascades to dependencies and to relationships where the table is the target', async () => {
+        const d = await diagramFromDbml(`
+Table users {
+  id integer [pk]
+}
+
+Table posts {
+  id integer [pk]
+  user_id integer [not null]
+}
+
+Table tags {
+  id integer [pk]
+}
+
+Table comments {
+  id integer [pk]
+  tag_id integer [not null]
+}
+
+Ref: posts.user_id > users.id
+Ref: comments.tag_id > tags.id
+`);
+        const id = (name: string) =>
+            d.tables?.find((t) => t.name === name)?.id as string;
+        const withDeps = {
+            ...d,
+            dependencies: [
+                // removed table is the dependent side
+                {
+                    id: 'dep-dependent',
+                    tableId: id('posts'),
+                    dependentTableId: id('users'),
+                    createdAt: 1,
+                },
+                // removed table is the primary side
+                {
+                    id: 'dep-primary',
+                    tableId: id('users'),
+                    dependentTableId: id('comments'),
+                    createdAt: 2,
+                },
+                // unrelated
+                {
+                    id: 'dep-unrelated',
+                    tableId: id('comments'),
+                    dependentTableId: id('tags'),
+                    createdAt: 3,
+                },
+            ],
+        };
+        const { gateway, store } = createMemoryGateway({
+            diagrams: [withDeps],
+            currentId: d.id,
+        });
+        const handlers = createTableHandlers(gateway);
+        expect(d.relationships).toHaveLength(2);
+
+        // users is the TARGET of posts.user_id -> users.id
+        const result = (await run(handlers, 'remove_tables', {
+            tables: ['users'],
+        })) as { removed: string[]; relationshipsRemoved: number };
+
+        const saved = store.get(d.id);
+        expect(result.relationshipsRemoved).toBe(1);
+        expect(saved?.tables?.map((t) => t.name).sort()).toEqual([
+            'comments',
+            'posts',
+            'tags',
+        ]);
+        expect(saved?.relationships).toHaveLength(1);
+        expect(saved?.relationships?.[0].sourceTableId).toBe(id('comments'));
+        expect(saved?.dependencies?.map((x) => x.id)).toEqual([
+            'dep-unrelated',
+        ]);
+    });
+
     it('fails on an unknown table without saving', async () => {
         const { handlers, saves } = await setup();
         await expect(

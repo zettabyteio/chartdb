@@ -1,5 +1,5 @@
 // The bridge is off unless VITE_MCP_BRIDGE_URL is set at build/dev time.
-// The token ends up in the JS bundle: use for local development only.
+// The token ends up in the JS bundle: local builds only (dev server or `vite preview`).
 // Only loopback hosts are accepted, so the token can never be sent elsewhere.
 export const isLoopbackUrl = (url: string): boolean => {
     try {
