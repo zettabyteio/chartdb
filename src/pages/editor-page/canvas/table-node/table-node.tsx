@@ -44,6 +44,7 @@ import { TableNodeContextMenu } from './table-node-context-menu';
 import { cn } from '@/lib/utils';
 import { TableNodeDependencyIndicator } from './table-node-dependency-indicator';
 import type { EdgeType } from '../canvas';
+import { areIdListsEqual } from '../canvas-utils';
 import {
     Tooltip,
     TooltipContent,
@@ -87,7 +88,6 @@ export const TableNode: React.FC<NodeProps<TableNodeType>> = React.memo(
         },
     }) => {
         const { updateTable, relationships, readonly } = useChartDB();
-        const edges = useStore((store) => store.edges) as EdgeType[];
         const {
             openTableFromSidebar,
             selectSidebarSection,
@@ -208,36 +208,33 @@ export const TableNode: React.FC<NodeProps<TableNodeType>> = React.memo(
         const { isDiffTableChanged, isDiffNewTable, isDiffTableRemoved } =
             diffState;
 
-        const selectedRelEdges: RelationshipEdgeType[] = useMemo(() => {
-            if (edges.length === 0) return [];
-
-            const relEdges: RelationshipEdgeType[] = [];
-            for (const edge of edges) {
+        // Select only the field ids this table needs, so a table re-renders
+        // when its own highlighted fields change, not on every edge update.
+        const highlightedFieldIdList = useStore((store) => {
+            const fieldIds: string[] = [];
+            for (const edge of store.edges as EdgeType[]) {
                 if (
                     edge.type === 'relationship-edge' &&
                     (edge.source === id || edge.target === id) &&
                     (edge.selected || edge.data?.highlighted)
                 ) {
-                    relEdges.push(edge as RelationshipEdgeType);
+                    const relationship = (edge as RelationshipEdgeType).data
+                        ?.relationship;
+                    if (relationship) {
+                        fieldIds.push(
+                            relationship.sourceFieldId,
+                            relationship.targetFieldId
+                        );
+                    }
                 }
             }
-            return relEdges;
-        }, [edges, id]);
-
-        const highlightedFieldIds = useMemo(() => {
-            const fieldIds = new Set<string>();
-            selectedRelEdges.forEach((edge) => {
-                if (edge.data?.relationship.sourceFieldId) {
-                    fieldIds.add(edge.data.relationship.sourceFieldId);
-                }
-
-                if (edge.data?.relationship.targetFieldId) {
-                    fieldIds.add(edge.data.relationship.targetFieldId);
-                }
-            });
-
             return fieldIds;
-        }, [selectedRelEdges]);
+        }, areIdListsEqual);
+
+        const highlightedFieldIds = useMemo(
+            () => new Set(highlightedFieldIdList),
+            [highlightedFieldIdList]
+        );
 
         const focused = useMemo(
             () => (!!selected && !dragging) || isHovering,

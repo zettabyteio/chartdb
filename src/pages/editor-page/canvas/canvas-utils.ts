@@ -113,3 +113,8 @@ export const findOverlappingTables = ({
 
     return graph;
 };
+
+// Equality for `useStore` selectors that return a fresh array on every store
+// update (pan, zoom, drag). Without it every subscriber re-renders each frame.
+export const areIdListsEqual = (a: string[], b: string[]): boolean =>
+    a.length === b.length && a.every((id, i) => id === b[i]);

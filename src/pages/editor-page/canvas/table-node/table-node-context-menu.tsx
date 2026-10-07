@@ -27,6 +27,7 @@ import React, { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCanvas } from '@/hooks/use-canvas';
 import { useReactFlow, useStore } from '@xyflow/react';
+import { areIdListsEqual } from '../canvas-utils';
 
 export interface TableNodeContextMenuProps {
     table: DBTable;
@@ -53,10 +54,12 @@ export const TableNodeContextMenu: React.FC<
     const { getNodes } = useReactFlow();
 
     // Reactively detect multi-selection
-    const selectedTableIds = useStore((state) =>
-        state.nodes
-            .filter((n) => n.type === 'table' && n.selected && !n.hidden)
-            .map((n) => n.id)
+    const selectedTableIds = useStore(
+        (state) =>
+            state.nodes
+                .filter((n) => n.type === 'table' && n.selected && !n.hidden)
+                .map((n) => n.id),
+        areIdListsEqual
     );
     const isMultiSelect =
         selectedTableIds.length > 1 && selectedTableIds.includes(table.id);
