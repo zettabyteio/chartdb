@@ -451,7 +451,11 @@ export const TableNode: React.FC<NodeProps<TableNodeType>> = React.memo(
                     }}
                     onMouseEnter={() => {
                         setIsHovering(true);
-                        setHoveringTableId(table.id);
+                        // Only the floating edge reads this. Setting it on every
+                        // hover re-renders all table nodes through the context.
+                        if (tempFloatingEdge) {
+                            setHoveringTableId(table.id);
+                        }
                     }}
                     onMouseLeave={() => {
                         setIsHovering(false);
